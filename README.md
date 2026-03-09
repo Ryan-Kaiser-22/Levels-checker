@@ -10,7 +10,7 @@ Key Features
 
 -Customizable Thresholds: Easily adjust decibel limits based on the specific requirements of the AI model.
 
-Built With Python and:
+Built With Python 3.12.3 and:
 -Librosa: For audio analysis.
 
 -NumPy: For array processing of audio.
