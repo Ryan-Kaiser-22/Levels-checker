@@ -11,18 +11,17 @@ Key Features
 -Customizable Thresholds: Easily adjust decibel limits based on the specific requirements of the AI model.
 
 Built With Python and:
+-Librosa: For audio analysis.
 
-Librosa: For audio analysis.
+-NumPy: For array processing of audio.
 
-NumPy: For array processing of audio.
-
-Pandas: For data logging and CSV export.
+-Pandas: For data logging and CSV export.
 
 How:
-Place your audio files in the /input directory.
+-Place your audio files in the /input directory.
 
-Set your desired threshold in config.py (e.g., -50dB).
+-Set your desired threshold in config.py (e.g., -50dB).
 
-Run the scanner: "python rms-scanner.py"
+-Run the scanner: "python rms-scanner.py"
 
-Review flagged_audio_report.csv for files requiring manual intervention.
+-Review flagged_audio_report.csv for files requiring manual intervention.
