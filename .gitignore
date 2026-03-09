@@ -2,7 +2,14 @@
 venv/
 .venv/
 
+# ignores python compiled folder and files
 __pycache__/
 *.pyc
 
-flagged_audio_report.csv
+audio_samples/
+*.wav
+*.mp3
+*.flac
+
+*.csv
+*.json

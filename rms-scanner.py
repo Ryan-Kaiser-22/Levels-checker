@@ -2,70 +2,98 @@ import librosa
 import numpy as np
 import os
 import csv
+import json
+from datetime import datetime
 
-# --- CONFIGURATION ---
-# Path to your audio files
+
 INPUT_FOLDER = 'audio_samples' 
-# RMS Threshold in Decibels (Anything louder than this -dB will be flagged)
-# -50.0 is a common "noise floor" cutoff for clean dialogue
-THRESHOLD_DB = -50.0 
-OUTPUT_CSV = 'flagged_audio_report.csv'
+MIN_RMS_THRESHOLD = -60.0  #flag if file is too quiet/nothing there
+MAX_PEAK_THRESHOLD = -5.0 #flag if hotter than this 
+OUTPUT_CSV = 'audio_audit_report.csv'
 
-def get_rms_db(audio_path):
-    """Loads audio and calculates the average RMS level in decibels."""
+
+def get_audio_db(audio_path):
     try:
-        # Load audio (sr=None preserves original sample rate)
-        y, sr = librosa.load(audio_path, sr=None)
+        # sample rate not checked for this script
+        y, _ = librosa.load(audio_path, sr=None)
+        if len(y) == 0: return None
         
-        # Calculate RMS energy
         rms_data = librosa.feature.rms(y=y)
         avg_rms = np.mean(rms_data)
-        
-        # Convert power to decibels
-        # ref=1.0 is standard for digital full scale
         rms_db = librosa.amplitude_to_db(np.array([avg_rms]), ref=1.0)[0]
         
-        return round(rms_db, 2)
+        peak_sample = np.max(np.abs(y))
+        peak_db = librosa.amplitude_to_db(np.array([peak_sample]), ref=1.0)[0]
+        
+        return round(rms_db, 2), round(peak_db, 2)
     except Exception as e:
         print(f"Error processing {audio_path}: {e}")
         return None
 
 def main():
-    # Create the input folder if it doesn't exist for the user
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+    output_csv = f"audit_{timestamp}.csv"
+    output_json = f"audit_{timestamp}.json"
+
     if not os.path.exists(INPUT_FOLDER):
         os.makedirs(INPUT_FOLDER)
-        print(f"Created folder: {INPUT_FOLDER}. Drop your .wav files there!")
         return
 
     files = [f for f in os.listdir(INPUT_FOLDER) if f.endswith(('.wav', '.mp3', '.flac'))]
-    
     if not files:
-        print("No audio files found in the input folder.")
+        print("No audio files found.")
         return
 
-    print(f"Scanning {len(files)} files against threshold {THRESHOLD_DB} dB...")
+    print(f"Scanning {len(files)} files...")
 
-    flagged_data = []
+    #export as CSV
+    report_data = []
+    flagged_count = 0
 
     for filename in files:
         file_path = os.path.join(INPUT_FOLDER, filename)
-        db_level = get_rms_db(file_path)
+        result = get_audio_db(file_path)
 
-        if db_level is not None:
-            # If the level is HIGHER (less negative) than the threshold, flag it
-            status = "FLAGGED" if db_level > THRESHOLD_DB else "CLEAN"
-            print(f"{filename}: {db_level} dB [{status}]")
+        if result is not None:
+            rms_val, peak_val = result
             
-            if status == "FLAGGED":
-                flagged_data.append([filename, db_level])
+            if rms_val < MIN_RMS_THRESHOLD:
+                status = "FLAGGED: Audio is too low"
+            elif peak_val > MAX_PEAK_THRESHOLD:
+                status = f"FLAGGED: Audio peaking above {MAX_PEAK_THRESHOLD}db"
+            else:
+                status = "CLEAN: Levels within range"
 
-    # Write results to CSV
-    with open(OUTPUT_CSV, mode='w', newline='') as file:
+            if "FLAGGED" in status:
+                flagged_count += 1
+            
+            print(f"{filename:25} | RMS: {rms_val:>6} | Peak: {peak_val:>6} | {status}")
+            
+            # report status of all files
+            report_data.append([filename, rms_val, peak_val, status])
+
+    with open(output_csv, mode='w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['Filename', 'RMS_dB_Level'])
-        writer.writerows(flagged_data)
+        writer.writerow(['Filename', 'Avg_RMS_dB', 'Peak_dB', 'Status'])
+        writer.writerows(report_data)
 
-    print(f"\nScan complete. {len(flagged_data)} files flagged. Report saved to {OUTPUT_CSV}")
+    json_data = [] 
+    for row in report_data:
+        json_data.append({
+            "filename": row[0],
+            "rms_db": round(float(row[1]), 2),   
+            "peak_db": round(float(row[2]), 2),
+            "status": row[3]
+        })
+
+    with open(output_json, "w") as jfile:
+        json.dump(json_data, jfile, indent=4)
+
+    print("-" * 30)
+    print(f"Scan complete. Total: {len(report_data)} | Flagged: {flagged_count}")
+    print(f"Report saved to {output_csv}")
+    print(f"JSON report saved to: {output_json}")
 
 if __name__ == "__main__":
     main()
