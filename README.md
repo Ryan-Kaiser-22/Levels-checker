@@ -1,4 +1,4 @@
-# RMS-Threshold-Scanner
+# Levels checker
 A Python-based Signal Quality Control (QC) tool designed to automate the auditing of large audio datasets. This utility scans directories for .wav, .mp3, and .flac files to verify compliance with RMS Energy and Peak Headroom thresholds.
 
 Key Features
